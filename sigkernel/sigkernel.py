@@ -3,8 +3,8 @@ import torch
 import torch.cuda
 from numba import cuda
 
-from cython_backend import sigkernel_cython, sigkernel_Gram_cython, sigkernel_derivatives_Gram_cython
-from .cuda_backend import sigkernel_cuda, sigkernel_Gram_cuda, sigkernel_derivatives_Gram_cuda
+from cython_backend import sigkernel_cython, sigkernel_from_abelian_cython, sigkernel_Gram_cython, sigkernel_derivatives_Gram_cython
+from .cuda_backend import sigkernel_cuda, sigkernel_from_abelian_cuda, sigkernel_Gram_cuda, sigkernel_derivatives_Gram_cuda
 
 from .static_kernels import *
 
@@ -19,6 +19,8 @@ class SigKernel():
         self.dyadic_order = dyadic_order
         self._naive_solver = _naive_solver
 
+        
+        
     def compute_kernel(self, X, Y, max_batch=100):
         """Input:
                   - X: torch tensor of shape (batch, length_X, dim),
@@ -35,6 +37,27 @@ class SigKernel():
             Y1, Y2 = Y[:cutoff], Y[cutoff:]
             K1 = self.compute_kernel(X1, Y1, max_batch)
             K2 = self.compute_kernel(X2, Y2, max_batch)
+            K = torch.cat((K1, K2), 0)
+        return K
+    
+    def compute_roughkernel(self, X, Y, d, max_batch=100):
+        """Input:
+                  - X: torch tensor of shape (batch, length_X, dim ),
+                  - Y: torch tensor of shape (batch, length_Y, dim)
+                  - d: (int) dimension of the state space of the path
+           Output: 
+                  - vector k(X^i_T,Y^i_T) of shape (batch,)
+        """
+        assert isinstance(self.static_kernel, LinearKernel), "rough sigkernel not compatible with nonlinear static kernels"
+        batch = X.shape[0]
+        if batch <= max_batch:
+            K = _RoughSigKernel.apply(X, Y, d, self.static_kernel, self.dyadic_order, self._naive_solver)
+        else:
+            cutoff = int(batch/2)
+            X1, X2 = X[:cutoff], X[cutoff:]
+            Y1, Y2 = Y[:cutoff], Y[cutoff:]
+            K1 = self.compute_roughkernel(X1, Y1, d, max_batch)
+            K2 = self.compute_roughkernel(X2, Y2, d, max_batch)
             K = torch.cat((K1, K2), 0)
         return K
 
@@ -399,6 +422,91 @@ class _SigKernelGram(torch.autograd.Function):
             grad = (grad_output[:,:,None,None]*grad_points).sum(dim=1)
             return grad, None, None, None, None, None
 # ===========================================================================================================
+
+
+class _RoughSigKernel(torch.autograd.Function):
+    """Signature kernel k_sig(x,y) = <S(f(x)),S(f(y))> where k(x,y) = <f(x),f(y)> is a given static kernel"""
+
+    @staticmethod
+    def forward(ctx, X, Y, D, static_kernel, dyadic_order, _naive_solver=False):
+
+        A = X.shape[0]
+        M = X.shape[1] + 1
+        N = Y.shape[1] + 1
+
+        MM = (2**dyadic_order)*(M-1)
+        NN = (2**dyadic_order)*(N-1)
+
+        # computing dsdt k(X^i_s,Y^i_t)
+        X, Y = X/float(2**dyadic_order), Y/float(2**dyadic_order)
+        G_static = static_kernel.batch_kernel(X,Y)
+        G_static_ = tile(tile(G_static,1,2**dyadic_order),2,2**dyadic_order)
+
+        # split level 1 and level2
+        MX, MY = X[...,D:].reshape(A, M-1, D, D), Y[...,D:].reshape(A, N-1, D, D)
+        X, Y = X[...,:D], Y[...,:D]
+        
+        # matrix  (level 2) vector (level1) multiplications
+        MXvY = torch.einsum('amij, anj -> amni', MX, Y)   #  (A,M,D,D) x (A,N,D) -> (A, M, N, D)
+        MYvX = torch.einsum('anij, amj -> amni', MY, X)   # (A,N,D,D) x (A,M,D) -> (A, M, N, D)
+
+        # tile all tensors
+        X, Y = tile(X,1,2**dyadic_order), tile(Y,1,2**dyadic_order)
+        MX, MY = tile(MX,1,2**dyadic_order), tile(MY,1,2**dyadic_order)
+        MXvY = tile(tile(MXvY,1,2**dyadic_order), 2, 2**dyadic_order)
+        MYvX = tile(tile(MYvX,1,2**dyadic_order), 2, 2**dyadic_order)
+
+        # initialize adjoint state
+        adj = torch.zeros((A, 2, MX.shape[1]*(2**dyadic_order), MY.shape[1]*(2**dyadic_order), device=G_static.device, dtype=G_static.dtype)   # (A, 2, M, N, D)
+        adj[:,0,1:,0] = torch.cumsum(X, axis=1)
+        adj[:,1,0,1:] = torch.cumsum(Y, axis=1)
+       
+        # if on GPU
+        if X.device.type in ['cuda']:
+
+            assert max(MM+1,NN+1) < 1024, 'n must be lowered or data must be moved to CPU as the current choice of n makes exceed the thread limit'
+
+            # cuda parameters
+            threads_per_block = max(MM+1,NN+1)
+            n_anti_diagonals = 2 * threads_per_block - 1
+
+            # Prepare the tensor of output solutions to the PDE (forward)
+            K = torch.zeros((A, MM+2, NN+2), device=G_static.device, dtype=G_static.dtype)
+            K[:,0,:] = 1.
+            K[:,:,0] = 1.
+
+            eval_adj = torch.zeros_like(K)
+
+            # Compute the forward signature kernel
+            sigkernel_from_abelian_cuda[A, threads_per_block](cuda.as_cuda_array(G_static_.detach()),\
+                                                             cuda.as_cuda_array(X), cuda.as_cuda_array(Y),
+                                                             cuda.as_cuda_array(MX), cuda.as_cuda_array(MY),
+                                                             cuda.as_cuda_array(MXvY), cuda.as_cuda_array(MYvX),
+                                                             cuda.as_cuda_array(eval_adj),
+                                                             D, MM+1, NN+1, n_anti_diagonals,
+                                                             cuda.as_cuda_array(adj), cuda.as_cuda_array(K), 
+                                                             _naive_solver)
+
+            K = K[:,:-1,:-1]
+
+        # if on CPU
+        else:         
+            K = torch.tensor(sigkernel_from_abelian_cython(G_static_.detach().numpy(), X.detach().numpy(), Y.detach().numpy(),\
+                                                           MX.detach().numpy(), MY.detach().numpy(), MXvY.detach().numpy(),\
+                                                           MYvX.detach().numpy(), adj.detach().numpy(), _naive_solver),\
+                             dtype=G_static.dtype, device=G_static.device)
+
+        ctx.save_for_backward(X,Y,G_static,K)
+        ctx.static_kernel = static_kernel
+        ctx.dyadic_order = dyadic_order
+        ctx._naive_solver = _naive_solver
+
+        return K[:,-1,-1]
+
+
+# ===========================================================================================================
+
+
 
 def prep_backward(X, Y, G, G_static, sym, static_kernel, dyadic_order, _naive_solver):
 

@@ -32,6 +32,44 @@ def sigkernel_cython(double[:,:,:] G_static, bint _naive_solver=False):
 
     return np.array(K)
 
+def sigkernel_from_abelian_cython(double[:,:,:] G_static, double[:,:,:] X, double[:,:,:] Y, double[:,:,:,:] M_x, double[:,:,:,:] M_y, double[:,:,:,:] Mxvy, double[:,:,:,:] Myvx, double[:,:,:,:,:] adj, bint _naive_solver=False):
+
+    cdef int A = G_static.shape[0]
+    cdef int M = G_static.shape[1]
+    cdef int N = G_static.shape[2]
+    cdef int D = X.shape[2]
+    cdef int i, j, l, p, q
+    cdef double X_ik, Y_jk
+
+    cdef double[:,:,:] K = np.zeros((A,M+1,N+1), dtype=np.float64)
+    cdef double[:,:,:] eval_adj = np.zeros((A,M+1,N+1), dtype=np.float64)
+
+    for l in range(A):
+        for i in range(M+1):
+            K[l,i,0] = 1.
+
+        for j in range(N+1):
+            K[l,0,j] = 1.
+
+        for i in range(M):
+            for j in range(N):
+                
+                for p in range(D):
+                
+                    eval_adj[l, i, j] = eval_adj[l, i, j] + adj[l, 0, i, j, p]*Myvx[l, i, j, p] + adj[l, 1, i, j, p]*Mxvy[l, i, j, p]
+        
+                    adj[l, 0, i+1, j+1, p] =  adj[l, 0, i, j+1, p] + K[l,i,j] * X[l, i, p] 
+                    adj[l, 1, i+1, j+1, p] =  adj[l, 1, i+1, j, p] + K[l,i,j] * Y[l, j, p]
+                
+                    for q in range(D):
+                        adj[l, 0, i+1, j+1, p] = adj[l, 0, i+1, j+1, p]  + adj[l, 1, i, j+1, q] * M_x[l, i, q, p]
+                        adj[l, 1, i+1, j+1, p] = adj[l, 1, i+1, j+1, p] + adj[l, 0, i+1, j, q] * M_y[l, j, q, p]
+                
+
+                K[l,i+1,j+1] = K[l,i+1,j] + K[l,i,j+1] - K[l,i,j] + K[l,i,j]*G_static[l,i,j] + eval_adj[l,i,j]
+
+    return np.array(K)
+
 
 def sigkernel_derivatives_cython(double[:,:,:] G_static, double[:,:,:] G_static_direction):
 
