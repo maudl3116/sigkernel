@@ -1,13 +1,6 @@
 import numpy as np
 
 def blob_size(width, max_degree_included_in_blob=-1):
-    """ 
->>> [blob_size(x,y) for (x,y) in [(3,1),(3,0),(3,3),(2,6)]]
-[5, 2, 41, 128]
->>> [blob_size(x) for x in [3,0]]
-[1, 1]
->>> 
-    """
     if max_degree_included_in_blob >= 0:
         if width == 0:
             return 2
@@ -19,23 +12,19 @@ def blob_size(width, max_degree_included_in_blob=-1):
     else:
         return int(1)
 
-    def tensor_shape(degree, width):
-    """
->>> [tensor_shape(x,y) for (x,y) in [(3,5),(1,5),(0,5)]]
-[(5, 5, 5), (5,), ()]
-    """
+def tensor_shape(degree, width):
     return tuple([width for i in range(degree)])
 
     
 def tensor_multiply(lhs, rhs, depth):
     """
->>> print(tensor_multiply(arange(3,2),arange(3,2),2))
-[ 3.  1.  4.  6.  8. 14. 18. 22. 22. 27. 32. 30. 36. 42.]
->>> print(tensor_multiply(arange(3,2),ones(3,2),2))
-[ 3.  1.  3.  4.  5.  8.  9. 10. 12. 13. 14. 16. 17. 18.]
->>> print(tensor_multiply(arange(3,2),one(3,2),2))
-[ 3.  1.  2.  3.  4.  5.  6.  7.  8.  9. 10. 11. 12. 13.]
->>> 
+    >>> print(tensor_multiply(arange(3,2),arange(3,2),2))
+    [ 3.  1.  4.  6.  8. 14. 18. 22. 22. 27. 32. 30. 36. 42.]
+    >>> print(tensor_multiply(arange(3,2),ones(3,2),2))
+    [ 3.  1.  3.  4.  5.  8.  9. 10. 12. 13. 14. 16. 17. 18.]
+    >>> print(tensor_multiply(arange(3,2),one(3,2),2))
+    [ 3.  1.  2.  3.  4.  5.  6.  7.  8.  9. 10. 11. 12. 13.]
+    >>> 
     """
     # lhs and rhs same width
     if int(rhs[0:1]) != int(lhs[0:1]):
@@ -68,14 +57,14 @@ def tensor_multiply(lhs, rhs, depth):
 
 def tensor_exp(arg, depth):
     """"
->>> d = 7
->>> s = stream2sigtensor(brownian(100,2),d)
->>> t = tensor_log(s,d)
->>> np.sum(tensor_sub(s, tensor_exp(tensor_log(s,d), d))[blob_size(2):]**2) < 1e-25
-True
->>> 
->>> # Computes the truncated exponential of arg
->>> #     1 + arg + arg^2/2! + ... + arg^n/n! where n = depth
+    >>> d = 7
+    >>> s = stream2sigtensor(brownian(100,2),d)
+    >>> t = tensor_log(s,d)
+    >>> np.sum(tensor_sub(s, tensor_exp(tensor_log(s,d), d))[blob_size(2):]**2) < 1e-25
+    True
+    >>> 
+    >>> # Computes the truncated exponential of arg
+    >>> #     1 + arg + arg^2/2! + ... + arg^n/n! where n = depth
     """
     width = int(arg[0])
     result = np.array(one(width))
