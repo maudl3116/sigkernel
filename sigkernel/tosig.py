@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def blob_size(width, max_degree_included_in_blob=-1):
     if max_degree_included_in_blob >= 0:
         if width == 0:
@@ -15,6 +16,14 @@ def blob_size(width, max_degree_included_in_blob=-1):
 def tensor_shape(degree, width):
     return tuple([width for i in range(degree)])
 
+def layers(blobsz, width):
+    return next((k for k in range(-1, blobsz) if blob_size(width, k) >= blobsz), None)
+
+
+def one(width, depth=0):
+    ans = np.zeros(blob_size(width, depth), dtype=np.float64)
+    ans[0:2] = np.array([np.float64(width), 1.0])
+    return ans
     
 def tensor_multiply(lhs, rhs, depth):
     """
