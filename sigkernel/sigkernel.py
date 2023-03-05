@@ -457,7 +457,7 @@ class _RoughSigKernel(torch.autograd.Function):
         MYvX = tile(tile(MYvX,1,2**dyadic_order), 2, 2**dyadic_order)
 
         # initialize adjoint state
-        adj = torch.zeros((A, 2, MX.shape[1]*(2**dyadic_order), MY.shape[1]*(2**dyadic_order)), device=G_static.device, dtype=G_static.dtype)   # (A, 2, M, N, D)
+        adj = torch.zeros((A, 2, MX.shape[1]+1, MY.shape[1]+1, device=G_static.device, dtype=G_static.dtype)   # (A, 2, M, N, D)
         adj[:,0,1:,0] = torch.cumsum(X, axis=1)
         adj[:,1,0,1:] = torch.cumsum(Y, axis=1)
        
