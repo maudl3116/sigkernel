@@ -24,7 +24,15 @@ def one(width, depth=0):
     ans = np.zeros(blob_size(width, depth), dtype=np.float64)
     ans[0:2] = np.array([np.float64(width), 1.0])
     return ans
-    
+
+def rescale(arg, factor, top=None):
+
+    if top is None:
+        top = arg[: blob_size(int(arg[0]))]
+    xx = np.tensordot(factor, arg, axes=0)
+    xx[0 : top.size] = top[:]
+    return xx  
+
 def tensor_multiply(lhs, rhs, depth):
     """
     >>> print(tensor_multiply(arange(3,2),arange(3,2),2))
