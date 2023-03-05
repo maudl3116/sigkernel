@@ -3,15 +3,13 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import doctest
-from esig import tosig as esig
-# from esig import tests as tests
 import numpy as np
-import tjl_dense_numpy_tensor as te
-import tjl_hall_numpy_lie as li
+#import tjl_dense_numpy_tensor as te
+#import tjl_hall_numpy_lie as li
 # import shuffle as sh
-import decorators
+# import decorators
 
-@decorators.accepts(int, int)
+# @decorators.accepts(int, int)
 def logsigdim(signal_dimension, signature_degree):
     """Returns the length of the log-signature vector.
 
@@ -31,13 +29,13 @@ def logsigdim(signal_dimension, signature_degree):
 
     
 
-    hall_set, degrees, degree_boundaries, reverse_map, width = li.hall_basis(
+    hall_set, degrees, degree_boundaries, reverse_map, width = hall_basis(
         signal_dimension, signature_degree
     )
     return hall_set.shape[0] - 1
 
 
-@decorators.accepts(int, int)
+# @decorators.accepts(int, int)
 def logsigkeys(signal_dimension, signature_degree):
     """Finds keys associated to the log-signature.
 
@@ -56,10 +54,10 @@ def logsigkeys(signal_dimension, signature_degree):
 
     """
 
-    return li.logsigkeys(signal_dimension, signature_degree)
+    return logsigkeys(signal_dimension, signature_degree)
 
 
-@decorators.accepts(int, int)
+# @decorators.accepts(int, int)
 def sigdim(signal_dimension, signature_degree):
     """Returns the length of the signature vector.
 
@@ -76,12 +74,12 @@ def sigdim(signal_dimension, signature_degree):
         Length of the signature vector.
         
     """
-    return te.blob_size(signal_dimension, signature_degree) - te.blob_size(
+    return blob_size(signal_dimension, signature_degree) - blob_size(
         signal_dimension
     )
 
 
-@decorators.accepts(int, int)
+# @decorators.accepts(int, int)
 def sigkeys(signal_dimension, signature_degree):
     """Finds keys associated to the signature.
 
@@ -99,10 +97,10 @@ def sigkeys(signal_dimension, signature_degree):
         to the entries in the signature.
 
     """
-    return li.sigkeys(signal_dimension, signature_degree)
+    return sigkeys(signal_dimension, signature_degree)
 
 
-@decorators.accepts((list, np.ndarray), int)
+# @decorators.accepts((list, np.ndarray), int)
 def stream2logsig(stream, signature_degree):
     """Computes the log-signature of a stream.
 
@@ -119,10 +117,10 @@ def stream2logsig(stream, signature_degree):
         Log-signature of the stream.
 
     """
-    return li.sparse_to_dense(
-        li.t2l(
-            te.tensor_log(
-                te.stream2sigtensor(stream, signature_degree), signature_degree
+    return sparse_to_dense(
+        t2l(
+            tensor_log(
+                stream2sigtensor(stream, signature_degree), signature_degree
             ),
         ),
         stream.shape[1],
@@ -130,7 +128,7 @@ def stream2logsig(stream, signature_degree):
     )
 
 
-@decorators.accepts((list, np.ndarray), int)
+# @decorators.accepts((list, np.ndarray), int)
 def stream2sig(stream, signature_degree):
     """Computes the signature of a stream.
 
@@ -165,10 +163,10 @@ def stream2sig(stream, signature_degree):
 
     """
     width = stream.shape[1]
-    return te.stream2sigtensor(stream, signature_degree)[te.blob_size(width) :]
+    return stream2sigtensor(stream, signature_degree)[te.blob_size(width) :]
 
 
-@decorators.accepts((list, np.ndarray), int)
+# @decorators.accepts((list, np.ndarray), int)
 def tensor_exp(tensor, truncation_level):
     """Computes the truncated exponential of tensor.
     
@@ -201,9 +199,9 @@ def tensor_exp(tensor, truncation_level):
 
     """
 
-    return te.tensor_exp(tensor, truncation_level)
+    return tensor_exp(tensor, truncation_level)
 
-@decorators.accepts((list, np.ndarray), int)
+# @decorators.accepts((list, np.ndarray), int)
 def tensor_log(tensor, truncation_level):
     """Computes the logarithm of a tensor.
 
@@ -230,9 +228,9 @@ def tensor_log(tensor, truncation_level):
     
     """
 
-    return te.tensor_log(tensor, truncation_level)
+    return tensor_log(tensor, truncation_level)
 
-@decorators.accepts((list, np.ndarray), (list, np.ndarray), int)
+# @decorators.accepts((list, np.ndarray), (list, np.ndarray), int)
 def tensor_multiply(tensor1, tensor2, depth):
     """Multiplies two tensors.
 
@@ -261,9 +259,9 @@ def tensor_multiply(tensor1, tensor2, depth):
     
     """
 
-    return te.tensor_multiply(tensor1, tensor2, depth)
+    return tensor_multiply(tensor1, tensor2, depth)
 
-@decorators.accepts(dict, int, int)
+# @decorators.accepts(dict, int, int)
 def lie2tensor(lie_element, width, depth):
     """Projects a Lie element in Hall basis form in tensor form.
 
@@ -290,9 +288,9 @@ def lie2tensor(lie_element, width, depth):
     True
     
     """
-    return li.l2t(lie_element, width, depth)
+    return l2t(lie_element, width, depth)
 
-@decorators.accepts((list, np.ndarray))
+# @decorators.accepts((list, np.ndarray))
 def tensor2lie(tensor):
     """Projects a Lie element in tensor form to a Lie in Hall basis form.
 
@@ -315,9 +313,9 @@ def tensor2lie(tensor):
     True
     
     """
-    return li.t2l(tensor)
+    return t2l(tensor)
 
-@decorators.accepts((list, np.ndarray), (list, np.ndarray), int, int)
+# @decorators.accepts((list, np.ndarray), (list, np.ndarray), int, int)
 def shuffle(tensor1, tensor2, dimension, degree):
     """Computes the shuffle product of two tensors.
     
@@ -375,7 +373,7 @@ def shuffle(tensor1, tensor2, dimension, degree):
     
     """
 
-    return sh.shuffle_product(tensor1, tensor2, dimension, degree)
+    return shuffle_product(tensor1, tensor2, dimension, degree)
 
 
 

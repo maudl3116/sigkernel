@@ -6,11 +6,11 @@ Distributed under the terms of the GNU General Public License,
 Version 3. (See accompanying file License.txt)
 """
 import doctest
-from tjl_dense_numpy_tensor import rescale
-from tjl_dense_numpy_tensor import tensor_add
+# from tjl_dense_numpy_tensor import rescale
+# from tjl_dense_numpy_tensor import tensor_add
 import numpy as np
 from collections import defaultdict
-import tjl_dense_numpy_tensor
+# import tjl_dense_numpy_tensor
 
 
 
@@ -30,7 +30,7 @@ except:
 #	# If Python 2.7
 #    from functools32 import lru_cache
 
-from tjl_dense_numpy_tensor import blob_size
+#from tjl_dense_numpy_tensor import blob_size
 
 scalar_type = float
 
