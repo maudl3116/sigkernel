@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 def blob_size(width, max_degree_included_in_blob=-1):
     """ 
